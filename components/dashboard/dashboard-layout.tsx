@@ -40,6 +40,7 @@ import {
   PieChart,
   Calendar,
   MessageSquare,
+  MessageCircle,
   HelpCircle,
   type LucideIcon,
   Sparkles,
@@ -61,6 +62,7 @@ const iconMap: Record<string, LucideIcon> = {
   PieChart,
   Calendar,
   MessageSquare,
+  MessageCircle,
   HelpCircle,
   User,
 };
@@ -95,7 +97,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-background via-background to-muted/30">
+    <div className="flex h-screen bg-linear-to-br from-background via-background to-muted/30">
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
@@ -117,10 +119,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex h-16 items-center justify-between border-b border-border/50 px-4">
           {!sidebarCollapsed && (
             <Link href="/dashboard" className="flex items-center gap-2 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-105">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-105">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Dashboard</span>
+              <span className="text-lg font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text">Dashboard</span>
             </Link>
           )}
           <Button
@@ -158,7 +160,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
+                        ? "bg-linear-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground hover:translate-x-1"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
@@ -185,7 +187,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Avatar className="h-9 w-9 ring-2 ring-primary/20">
                   <AvatarImage src={user?.photoURL} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-sm">
+                  <AvatarFallback className="bg-linear-to-br from-primary to-primary/70 text-primary-foreground text-sm">
                     {user?.displayName ? getInitials(user.displayName) : "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -242,7 +244,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <ThemeToggle />
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-red-600 text-[10px] text-white font-medium shadow-lg">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-linear-to-r from-red-500 to-red-600 text-[10px] text-white font-medium shadow-lg">
                 3
               </span>
             </Button>

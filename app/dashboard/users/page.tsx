@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, addDoc, getDocs } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, addDoc, setDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { db, auth } from "@/lib/firebase";
 import { useAuth, PERMISSIONS } from "@/contexts/auth-context";
@@ -89,6 +89,7 @@ export default function UsersPage() {
       },
       (error) => {
         console.error("Error fetching users:", error);
+        toast.error("Failed to fetch users");
         setLoading(false);
       }
     );
@@ -96,23 +97,26 @@ export default function UsersPage() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch roles
+  // Fetch roles with realtime listener
   useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const rolesSnapshot = await getDocs(collection(db, "roles"));
-        if (!rolesSnapshot.empty) {
-          const rolesData = rolesSnapshot.docs.map((doc) => ({
+    const unsubscribe = onSnapshot(
+      collection(db, "roles"),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const rolesData = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as RoleConfig[];
           setRoles(rolesData);
         }
-      } catch (error) {
+      },
+      (error) => {
         console.error("Error fetching roles:", error);
+        toast.error("Failed to fetch roles");
       }
-    };
-    fetchRoles();
+    );
+
+    return () => unsubscribe();
   }, []);
 
   // Create new user
@@ -141,19 +145,21 @@ export default function UsersPage() {
         displayName: formData.displayName,
       });
 
-      // Create user document in Firestore
-      await addDoc(collection(db, "users"), {
+      // Get role config to get proper menuIds
+      const roleConfig = roles.find(r => r.id === formData.role);
+      const menuIds = roleConfig?.menuIds || (formData.role === "admin" ? [] : ["dashboard"]);
+
+      // Create user document in Firestore with Auth UID as document ID
+      await setDoc(doc(db, "users", userCredential.user.uid), {
         email: formData.email,
         displayName: formData.displayName,
         role: formData.role,
         isActive: formData.isActive,
         photoURL: null,
+        menuIds: menuIds,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-
-      // Update the document ID to match the auth UID
-      // Note: In a real app, you'd want to use setDoc with the UID as document ID
       
       // Log activity
       await addDoc(collection(db, "activities"), {

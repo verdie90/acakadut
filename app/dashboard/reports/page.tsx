@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { FileText, Download, Plus, Search, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface Report {
   id: string;
@@ -59,6 +60,7 @@ export default function ReportsPage() {
       },
       (error) => {
         console.error("Error fetching reports:", error);
+        toast.error("Failed to fetch reports");
         setLoading(false);
       }
     );
@@ -96,15 +98,18 @@ export default function ReportsPage() {
         timestamp: serverTimestamp(),
         type: "success",
       });
+      
+      toast.success("Report created successfully");
     } catch (error) {
       console.error("Error creating report:", error);
+      toast.error("Failed to create report");
     }
   };
 
   const handleExportReport = (report: Report) => {
     if (!hasPermission(PERMISSIONS.EXPORT_REPORTS)) return;
     // In production, this would generate and download a report
-    console.log("Exporting report:", report.id);
+    toast.info(`Exporting report: ${report.title}`);
   };
 
   return (

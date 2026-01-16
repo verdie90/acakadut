@@ -1,20 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PERMISSIONS } from "@/contexts/auth-context";
 import { PermissionGuard } from "@/components/auth/permission-guard";
 import { db } from "@/lib/firebase";
 import {
   collection,
-  getDocs,
-  addDoc,
   updateDoc,
   deleteDoc,
   doc,
   orderBy,
   query,
+  setDoc,
+  onSnapshot,
 } from "firebase/firestore";
-import { MenuItem, DEFAULT_MENUS } from "@/lib/rbac/types";
+import { MenuItem, DEFAULT_MENUS, PERMISSIONS } from "@/lib/rbac/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,6 +87,7 @@ import {
   PieChart,
   Calendar,
   MessageSquare,
+  MessageCircle,
   HelpCircle,
   RefreshCw,
   type LucideIcon,
@@ -109,23 +109,20 @@ const AVAILABLE_ICONS = [
   { name: "PieChart", icon: PieChart },
   { name: "Calendar", icon: Calendar },
   { name: "MessageSquare", icon: MessageSquare },
+  { name: "MessageCircle", icon: MessageCircle },
   { name: "HelpCircle", icon: HelpCircle },
 ];
 
-// Available permissions
+// Available permissions - dynamically built from PERMISSIONS constant
 const AVAILABLE_PERMISSIONS = [
   { value: "none", label: "No Permission Required" },
-  { value: PERMISSIONS.VIEW_DASHBOARD, label: "View Dashboard" },
-  { value: PERMISSIONS.VIEW_USERS, label: "View Users" },
-  { value: PERMISSIONS.MANAGE_USERS, label: "Manage Users" },
-  { value: PERMISSIONS.VIEW_REPORTS, label: "View Reports" },
-  { value: PERMISSIONS.CREATE_REPORTS, label: "Create Reports" },
-  { value: PERMISSIONS.DELETE_REPORTS, label: "Delete Reports" },
-  { value: PERMISSIONS.VIEW_ANALYTICS, label: "View Analytics" },
-  { value: PERMISSIONS.VIEW_SETTINGS, label: "View Settings" },
-  { value: PERMISSIONS.MANAGE_SETTINGS, label: "Manage Settings" },
-  { value: PERMISSIONS.MANAGE_ROLES, label: "Manage Roles" },
-  { value: PERMISSIONS.MANAGE_MENUS, label: "Manage Menus" },
+  ...Object.entries(PERMISSIONS).map(([key, value]) => ({
+    value: value,
+    label: key
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" "),
+  })),
 ];
 
 interface MenuFormData {
@@ -155,49 +152,64 @@ export default function MenusPage() {
   const [formData, setFormData] = useState<MenuFormData>(defaultFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch menus from Firestore
-  const fetchMenus = async () => {
-    try {
-      setLoading(true);
-      const menusQuery = query(collection(db, "menus"), orderBy("order", "asc"));
-      const snapshot = await getDocs(menusQuery);
-      const menusList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as MenuItem[];
-      setMenus(menusList);
-    } catch (error) {
-      console.error("Error fetching menus:", error);
-      toast.error("Failed to fetch menus");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Realtime listener for menus
   useEffect(() => {
-    fetchMenus();
+    const menusQuery = query(collection(db, "menus"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(
+      menusQuery,
+      (snapshot) => {
+        const menusList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as MenuItem[];
+        
+        // Deduplicate menus by href
+        const seenHrefs = new Set<string>();
+        const deduplicatedMenus = menusList.filter((menu) => {
+          if (seenHrefs.has(menu.href)) return false;
+          seenHrefs.add(menu.href);
+          return true;
+        });
+        
+        setMenus(deduplicatedMenus);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching menus:", error);
+        toast.error("Failed to fetch menus");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
-  // Initialize menus from defaults
+  // Initialize menus from defaults - using setDoc with explicit ID for consistency
   const initializeDefaultMenus = async () => {
     try {
       setIsSubmitting(true);
       for (const menu of DEFAULT_MENUS) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _id, ...menuData } = menu;
-        await addDoc(collection(db, "menus"), {
+        const { id, ...menuData } = menu;
+        await setDoc(doc(db, "menus", id), {
           ...menuData,
           createdAt: new Date(),
         });
       }
       toast.success("Default menus initialized successfully");
-      fetchMenus();
     } catch (error) {
       console.error("Error initializing menus:", error);
       toast.error("Failed to initialize menus");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Generate a slug from title for menu ID
+  const generateMenuId = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   };
 
   // Handle form submit (create/update)
@@ -218,8 +230,17 @@ export default function MenusPage() {
         });
         toast.success("Menu updated successfully");
       } else {
-        // Create new menu
-        await addDoc(collection(db, "menus"), {
+        // Create new menu with custom ID based on title
+        const menuId = generateMenuId(formData.title);
+        
+        // Check if ID already exists
+        const existingMenu = menus.find((m) => m.id === menuId);
+        if (existingMenu) {
+          toast.error("A menu with this title already exists");
+          return;
+        }
+        
+        await setDoc(doc(db, "menus", menuId), {
           ...formData,
           createdAt: new Date(),
         });
@@ -229,7 +250,6 @@ export default function MenusPage() {
       setDialogOpen(false);
       setSelectedMenu(null);
       setFormData(defaultFormData);
-      fetchMenus();
     } catch (error) {
       console.error("Error saving menu:", error);
       toast.error("Failed to save menu");
@@ -248,7 +268,6 @@ export default function MenusPage() {
       toast.success("Menu deleted successfully");
       setDeleteDialogOpen(false);
       setSelectedMenu(null);
-      fetchMenus();
     } catch (error) {
       console.error("Error deleting menu:", error);
       toast.error("Failed to delete menu");
@@ -265,7 +284,6 @@ export default function MenusPage() {
         updatedAt: new Date(),
       });
       toast.success(`Menu ${menu.isActive ? "disabled" : "enabled"}`);
-      fetchMenus();
     } catch (error) {
       console.error("Error toggling menu:", error);
       toast.error("Failed to update menu");

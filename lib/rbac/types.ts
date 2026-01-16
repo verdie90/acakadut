@@ -63,6 +63,12 @@ export const PERMISSIONS = {
   VIEW_ALL_DATA: "view_all_data",
   VIEW_OWN_DATA: "view_own_data",
   EDIT_OWN_DATA: "edit_own_data",
+  
+  // WhatsApp
+  VIEW_WHATSAPP: "view_whatsapp",
+  MANAGE_WHATSAPP: "manage_whatsapp",
+  VIEW_WHATSAPP_OFFICIAL: "view_whatsapp_official",
+  MANAGE_WHATSAPP_OFFICIAL: "manage_whatsapp_official",
 } as const;
 
 // Default menu items
@@ -128,6 +134,24 @@ export const DEFAULT_MENUS: MenuItem[] = [
     icon: "Settings",
     permission: PERMISSIONS.VIEW_SETTINGS,
     order: 7,
+    isActive: true,
+  },
+  {
+    id: "whatsapp",
+    title: "WhatsApp",
+    href: "/dashboard/whatsapp",
+    icon: "MessageSquare",
+    permission: PERMISSIONS.VIEW_WHATSAPP,
+    order: 8,
+    isActive: true,
+  },
+  {
+    id: "whatsapp-official",
+    title: "WhatsApp Official",
+    href: "/dashboard/whatsapp-official",
+    icon: "MessageCircle",
+    permission: PERMISSIONS.VIEW_WHATSAPP_OFFICIAL,
+    order: 9,
     isActive: true,
   },
 ];

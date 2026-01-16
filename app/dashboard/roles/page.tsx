@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, serverTimestamp, getDoc, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/auth-context";
 import { AdminOnly } from "@/components/auth/permission-guard";
-import { RoleConfig, MenuItem, PERMISSIONS as ALL_PERMISSIONS, DEFAULT_ROLES } from "@/lib/rbac/types";
+import { RoleConfig, MenuItem, PERMISSIONS as ALL_PERMISSIONS, DEFAULT_ROLES, DEFAULT_MENUS } from "@/lib/rbac/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,18 +50,26 @@ const permissionCategories = {
     ALL_PERMISSIONS.EDIT_USERS,
     ALL_PERMISSIONS.DELETE_USERS,
     ALL_PERMISSIONS.MANAGE_ROLES,
+    ALL_PERMISSIONS.MANAGE_USERS,
   ],
   Reports: [
     ALL_PERMISSIONS.VIEW_REPORTS,
     ALL_PERMISSIONS.CREATE_REPORTS,
     ALL_PERMISSIONS.EXPORT_REPORTS,
+    ALL_PERMISSIONS.DELETE_REPORTS,
   ],
-  Settings: [ALL_PERMISSIONS.VIEW_SETTINGS, ALL_PERMISSIONS.EDIT_SETTINGS],
+  Settings: [ALL_PERMISSIONS.VIEW_SETTINGS, ALL_PERMISSIONS.EDIT_SETTINGS, ALL_PERMISSIONS.MANAGE_SETTINGS],
   Menus: [ALL_PERMISSIONS.MANAGE_MENUS],
   Data: [
     ALL_PERMISSIONS.VIEW_ALL_DATA,
     ALL_PERMISSIONS.VIEW_OWN_DATA,
     ALL_PERMISSIONS.EDIT_OWN_DATA,
+  ],
+  WhatsApp: [
+    ALL_PERMISSIONS.VIEW_WHATSAPP,
+    ALL_PERMISSIONS.MANAGE_WHATSAPP,
+    ALL_PERMISSIONS.VIEW_WHATSAPP_OFFICIAL,
+    ALL_PERMISSIONS.MANAGE_WHATSAPP_OFFICIAL,
   ],
 };
 
@@ -81,8 +89,9 @@ const defaultFormData: RoleFormData = {
 const PROTECTED_ROLES = ["admin", "manager", "user"];
 
 export default function RolesPage() {
-  const { menus } = useAuth(); // For auth state and menus
+  useAuth(); // For auth state validation
   const [roles, setRoles] = useState<RoleConfig[]>(DEFAULT_ROLES);
+  const [allMenus, setAllMenus] = useState<MenuItem[]>(DEFAULT_MENUS); // All menus from Firestore
   const [selectedRole, setSelectedRole] = useState<RoleConfig | null>(null);
   const [editedPermissions, setEditedPermissions] = useState<string[]>([]);
   const [editedMenuIds, setEditedMenuIds] = useState<string[]>([]);
@@ -97,6 +106,39 @@ export default function RolesPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<RoleConfig | null>(null);
 
+  // Fetch all menus from Firestore
+  useEffect(() => {
+    const menusQuery = query(collection(db, "menus"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(
+      menusQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const menusData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as MenuItem[];
+          
+          // Deduplicate menus by href
+          const seenHrefs = new Set<string>();
+          const deduplicatedMenus = menusData.filter((menu) => {
+            if (seenHrefs.has(menu.href)) return false;
+            seenHrefs.add(menu.href);
+            return true;
+          });
+          
+          setAllMenus(deduplicatedMenus);
+        }
+      },
+      (error) => {
+        console.error("Error fetching menus:", error);
+        toast.error("Failed to fetch menus");
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch roles from Firestore and merge with defaults
   useEffect(() => {
     const rolesRef = collection(db, "roles");
     const unsubscribe = onSnapshot(
@@ -108,17 +150,42 @@ export default function RolesPage() {
             ...doc.data(),
           })) as RoleConfig[];
           setRoles(rolesData);
+        } else {
+          // No roles in Firestore, use defaults
+          setRoles(DEFAULT_ROLES);
         }
         setLoading(false);
       },
       (error) => {
         console.error("Error fetching roles:", error);
+        toast.error("Failed to fetch roles");
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, []);
+
+  // Initialize default roles to Firestore
+  const initializeDefaultRoles = async () => {
+    setSaving(true);
+    try {
+      for (const role of DEFAULT_ROLES) {
+        const { id, ...roleData } = role;
+        await setDoc(doc(db, "roles", id), {
+          ...roleData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      toast.success("Default roles initialized successfully");
+    } catch (error) {
+      console.error("Error initializing roles:", error);
+      toast.error("Failed to initialize roles");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSelectRole = (role: RoleConfig) => {
     setSelectedRole(role);
@@ -341,6 +408,11 @@ export default function RolesPage() {
       .join(" ");
   };
 
+  // Check if roles are from Firestore or default
+  const rolesNeedInit = roles === DEFAULT_ROLES || roles.every(
+    (r) => DEFAULT_ROLES.some((dr) => dr.id === r.id && dr.name === r.name)
+  );
+
   return (
     <AdminOnly>
       <div className="space-y-6">
@@ -351,15 +423,26 @@ export default function RolesPage() {
               Configure roles and permissions for your application
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateDialog}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Role
+          <div className="flex gap-2">
+            {rolesNeedInit && (
+              <Button
+                variant="outline"
+                onClick={initializeDefaultRoles}
+                disabled={saving}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Initialize Defaults
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            )}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openCreateDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Role
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
                 <DialogTitle>{isEditing ? "Edit Role" : "Create New Role"}</DialogTitle>
                 <DialogDescription>
                   {isEditing
@@ -417,6 +500,7 @@ export default function RolesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -578,13 +662,13 @@ export default function RolesPage() {
                       <p className="text-sm text-muted-foreground">
                         Select which menu items this role can access. Users will only see menus assigned to their role.
                       </p>
-                      {menus.length === 0 ? (
+                      {allMenus.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                           No menus configured. Go to Menu Management to add menus.
                         </div>
                       ) : (
                         <div className="grid gap-3">
-                          {menus.map((menu: MenuItem) => (
+                          {allMenus.map((menu: MenuItem) => (
                             <div
                               key={menu.id}
                               className="flex items-center justify-between rounded-lg border p-4"
