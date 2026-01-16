@@ -66,14 +66,14 @@ export function LoginForm() {
 
       <Card className="relative overflow-hidden border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl shadow-primary/10">
         {/* Decorative gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
 
         <CardHeader className="space-y-2 text-center relative">
           {/* Logo */}
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25">
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25">
             <Sparkles className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+          <CardTitle className="text-2xl font-bold bg-linear-to-r from-foreground to-foreground/80 bg-clip-text">
             {t("common.welcomeBack")}
           </CardTitle>
           <CardDescription>
@@ -134,7 +134,7 @@ export function LoginForm() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/30"
+              className="w-full bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/30"
               disabled={isLoading}
             >
               {isLoading ? <LoaderOne /> : null}
@@ -171,8 +171,8 @@ export function LoginForm() {
         </CardFooter>
 
         {/* Decorative elements */}
-        <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -top-12 -left-12 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-linear-to-br from-primary/20 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-12 -left-12 w-32 h-32 bg-linear-to-br from-primary/10 to-transparent rounded-full blur-3xl pointer-events-none" />
       </Card>
     </div>
   );
