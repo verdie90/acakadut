@@ -19,9 +19,10 @@ import {
   collection,
   query,
   getDocs,
+  orderBy,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { User, UserRole, RoleConfig, DEFAULT_ROLES, PERMISSIONS } from "@/lib/rbac/types";
+import { User, UserRole, RoleConfig, MenuItem, DEFAULT_ROLES, DEFAULT_MENUS, PERMISSIONS } from "@/lib/rbac/types";
 
 interface AuthContextType {
   user: User | null;
@@ -29,6 +30,8 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   roles: RoleConfig[];
+  menus: MenuItem[];
+  userMenus: MenuItem[];
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -36,6 +39,7 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
+  hasMenuAccess: (menuId: string) => boolean;
   isAdmin: boolean;
   isManager: boolean;
   isUser: boolean;
@@ -74,6 +78,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roles, setRoles] = useState<RoleConfig[]>(DEFAULT_ROLES);
+  const [menus, setMenus] = useState<MenuItem[]>(DEFAULT_MENUS);
+
+  // Fetch menus from Firestore (for dynamic menu management)
+  useEffect(() => {
+    const menusQuery = query(collection(db, "menus"), orderBy("order", "asc"));
+    const unsubscribe = onSnapshot(
+      menusQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const fetchedMenus = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as MenuItem[];
+          setMenus(fetchedMenus);
+        }
+      },
+      (err) => {
+        console.error("Error fetching menus:", err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   // Fetch roles from Firestore (for dynamic role management)
   useEffect(() => {
@@ -192,17 +219,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
+    // Admin has all permissions
+    if (user.role === "admin") return true;
     const userRole = roles.find((r) => r.id === user.role);
     return userRole?.permissions.includes(permission) ?? false;
   };
 
   const hasAnyPermission = (permissions: string[]): boolean => {
+    if (!user) return false;
+    // Admin has all permissions
+    if (user.role === "admin") return true;
     return permissions.some((p) => hasPermission(p));
   };
 
   const hasAllPermissions = (permissions: string[]): boolean => {
+    if (!user) return false;
+    // Admin has all permissions
+    if (user.role === "admin") return true;
     return permissions.every((p) => hasPermission(p));
   };
+
+  const hasMenuAccess = (menuId: string): boolean => {
+    if (!user) return false;
+    // Admin has access to all menus
+    if (user.role === "admin") return true;
+    const userRole = roles.find((r) => r.id === user.role);
+    // If role has menuIds configured, use them; otherwise check permission
+    if (userRole?.menuIds && userRole.menuIds.length > 0) {
+      return userRole.menuIds.includes(menuId);
+    }
+    // Fallback: check if user has permission for the menu
+    const menu = menus.find((m) => m.id === menuId);
+    if (!menu) return false;
+    return !menu.permission || hasPermission(menu.permission);
+  };
+
+  // Get menus accessible by current user based on role
+  const userMenus = React.useMemo(() => {
+    if (!user) return [];
+    
+    // Admin gets all active menus
+    if (user.role === "admin") {
+      return menus.filter((menu) => menu.isActive).sort((a, b) => a.order - b.order);
+    }
+    
+    const userRole = roles.find((r) => r.id === user.role);
+    if (!userRole) return [];
+    
+    // Filter menus based on role's menuIds OR permissions (fallback)
+    const hasMenuIds = userRole.menuIds && userRole.menuIds.length > 0;
+    
+    return menus
+      .filter((menu) => {
+        if (!menu.isActive) return false;
+        
+        // If role has menuIds configured, use them
+        if (hasMenuIds) {
+          return userRole.menuIds?.includes(menu.id);
+        }
+        
+        // Fallback: check permission
+        return !menu.permission || userRole.permissions.includes(menu.permission);
+      })
+      .sort((a, b) => a.order - b.order);
+  }, [user, roles, menus]);
 
   const value: AuthContextType = {
     user,
@@ -210,6 +290,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     roles,
+    menus,
+    userMenus,
     signIn,
     signUp,
     signInWithGoogle,
@@ -217,6 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
+    hasMenuAccess,
     isAdmin: user?.role === "admin",
     isManager: user?.role === "manager",
     isUser: user?.role === "user",

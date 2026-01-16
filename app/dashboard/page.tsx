@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, query, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { AreaChartComponent, BarChartComponent, LineChartComponent } from "@/components/dashboard/charts";
 import { RealtimeActivityFeed } from "@/components/dashboard/realtime-activity-feed";
@@ -47,6 +48,7 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user, isAdmin, isManager } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     totalReports: 0,
@@ -93,43 +95,43 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{t("dashboard.title")}</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.displayName}! Here&apos;s what&apos;s happening.
+          {t("dashboard.welcome")}, {user?.displayName}! {t("dashboard.whatsHappening")}
         </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title="Total Users"
+          title={t("dashboard.totalUsers")}
           value={stats.totalUsers}
-          description="from last month"
+          description={t("dashboard.fromLastMonth")}
           icon={Users}
           trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
-          title="Active Users"
+          title={t("dashboard.activeUsers")}
           value={stats.activeUsers}
-          description="currently active"
+          description={t("dashboard.currentlyActive")}
           icon={Activity}
           trend={{ value: 8, isPositive: true }}
         />
         <StatsCard
-          title="Total Reports"
+          title={t("dashboard.totalReports")}
           value={stats.totalReports}
-          description="generated this month"
+          description={t("dashboard.generatedThisMonth")}
           icon={FileText}
           trend={{ value: 15, isPositive: true }}
         />
         {(isAdmin || isManager) && (
           <StatsCard
-            title="Revenue"
+            title={t("dashboard.revenue")}
             value={`$${stats.revenue.toLocaleString()}`}
-            description="from last month"
+            description={t("dashboard.fromLastMonth")}
             icon={DollarSign}
             trend={{ value: 20, isPositive: true }}
           />
@@ -141,18 +143,18 @@ export default function DashboardPage() {
         <AreaChartComponent
           data={revenueData}
           dataKey="revenue"
-          title="Revenue Overview"
-          description="Monthly revenue for the current year"
-          color="#8884d8"
+          title={t("dashboard.revenueOverview")}
+          description={t("dashboard.monthlyRevenue")}
+          color="oklch(0.65 0.22 265)"
         />
         <LineChartComponent
           data={performanceData}
           dataKeys={[
-            { key: "current", color: "#8884d8", name: "This Week" },
-            { key: "previous", color: "#82ca9d", name: "Last Week" },
+            { key: "current", color: "oklch(0.65 0.22 265)", name: t("dashboard.thisWeek") },
+            { key: "previous", color: "oklch(0.7 0.18 170)", name: t("dashboard.lastWeek") },
           ]}
-          title="Performance Comparison"
-          description="Weekly performance metrics"
+          title={t("dashboard.performanceComparison")}
+          description={t("dashboard.weeklyMetrics")}
         />
       </div>
 
@@ -162,9 +164,9 @@ export default function DashboardPage() {
           <BarChartComponent
             data={userActivityData}
             dataKey="users"
-            title="User Activity"
-            description="Weekly active users"
-            color="#00C49F"
+            title={t("dashboard.userActivity")}
+            description={t("dashboard.weeklyActiveUsers")}
+            color="oklch(0.7 0.18 170)"
           />
         </div>
         <RealtimeActivityFeed maxItems={5} />
@@ -172,60 +174,68 @@ export default function DashboardPage() {
 
       {/* Quick Actions - Admin Only */}
       {isAdmin && (
-        <Card>
+        <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>{t("dashboard.quickActions")}</CardTitle>
             <CardDescription>
-              Frequently used administrative actions
+              {t("dashboard.frequentlyUsed")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <a
                 href="/dashboard/users"
-                className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
               >
-                <Users className="h-5 w-5 text-primary" />
+                <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 p-2.5 transition-transform group-hover:scale-110">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
                 <div>
-                  <div className="font-medium">Manage Users</div>
+                  <div className="font-medium">{t("dashboard.manageUsers")}</div>
                   <div className="text-sm text-muted-foreground">
-                    View and edit users
+                    {t("dashboard.viewEditUsers")}
                   </div>
                 </div>
               </a>
               <a
                 href="/dashboard/reports"
-                className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
               >
-                <FileText className="h-5 w-5 text-primary" />
+                <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 p-2.5 transition-transform group-hover:scale-110">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
                 <div>
-                  <div className="font-medium">View Reports</div>
+                  <div className="font-medium">{t("dashboard.viewReports")}</div>
                   <div className="text-sm text-muted-foreground">
-                    Access all reports
+                    {t("dashboard.accessReports")}
                   </div>
                 </div>
               </a>
               <a
                 href="/dashboard/analytics"
-                className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
               >
-                <TrendingUp className="h-5 w-5 text-primary" />
+                <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 p-2.5 transition-transform group-hover:scale-110">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
                 <div>
-                  <div className="font-medium">Analytics</div>
+                  <div className="font-medium">{t("dashboard.analytics")}</div>
                   <div className="text-sm text-muted-foreground">
-                    View detailed analytics
+                    {t("dashboard.viewAnalytics")}
                   </div>
                 </div>
               </a>
               <a
                 href="/dashboard/roles"
-                className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all duration-200 hover:bg-accent/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
               >
-                <Activity className="h-5 w-5 text-primary" />
+                <div className="rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 p-2.5 transition-transform group-hover:scale-110">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
                 <div>
-                  <div className="font-medium">Manage Roles</div>
+                  <div className="font-medium">{t("dashboard.manageRoles")}</div>
                   <div className="text-sm text-muted-foreground">
-                    Configure permissions
+                    {t("dashboard.configurePermissions")}
                   </div>
                 </div>
               </a>
@@ -236,3 +246,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

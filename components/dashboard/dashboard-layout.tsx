@@ -4,9 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useAuth, PERMISSIONS } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context";
+import { MenuItem } from "@/lib/rbac/types";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LanguageToggle } from "@/components/ui/language-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,53 +33,42 @@ import {
   Menu,
   X,
   Bell,
+  Home,
+  Folder,
+  Database,
+  Activity,
+  PieChart,
+  Calendar,
+  MessageSquare,
+  HelpCircle,
+  type LucideIcon,
+  Sparkles,
 } from "lucide-react";
 
-interface NavItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  permission?: string;
-}
+// Icon mapping for dynamic icons from Firestore
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  Users,
+  FileText,
+  Settings,
+  BarChart3,
+  Shield,
+  Menu,
+  Home,
+  Folder,
+  Database,
+  Activity,
+  PieChart,
+  Calendar,
+  MessageSquare,
+  HelpCircle,
+  User,
+};
 
-const navItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    permission: PERMISSIONS.VIEW_DASHBOARD,
-  },
-  {
-    title: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    permission: PERMISSIONS.VIEW_ANALYTICS,
-  },
-  {
-    title: "Users",
-    href: "/dashboard/users",
-    icon: Users,
-    permission: PERMISSIONS.VIEW_USERS,
-  },
-  {
-    title: "Reports",
-    href: "/dashboard/reports",
-    icon: FileText,
-    permission: PERMISSIONS.VIEW_REPORTS,
-  },
-  {
-    title: "Roles",
-    href: "/dashboard/roles",
-    icon: Shield,
-    permission: PERMISSIONS.MANAGE_ROLES,
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    permission: PERMISSIONS.VIEW_SETTINGS,
-  },
-];
+// Get icon component from string name
+const getIcon = (iconName: string): LucideIcon => {
+  return iconMap[iconName] || LayoutDashboard;
+};
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -85,11 +78,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, logout, hasPermission } = useAuth();
-
-  const filteredNavItems = navItems.filter(
-    (item) => !item.permission || hasPermission(item.permission)
-  );
+  const { user, logout, userMenus } = useAuth();
+  const { t } = useLanguage();
 
   const getInitials = (name: string) => {
     return name
@@ -105,11 +95,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -117,25 +107,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-card transition-all duration-300 lg:relative",
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-card/80 backdrop-blur-xl transition-all duration-300 lg:relative",
+          "shadow-xl shadow-primary/5",
           sidebarCollapsed ? "w-16" : "w-64",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex h-16 items-center justify-between border-b border-border/50 px-4">
           {!sidebarCollapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <LayoutDashboard className="h-5 w-5" />
+            <Link href="/dashboard" className="flex items-center gap-2 group">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 transition-transform group-hover:scale-105">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <span className="text-lg font-bold">Dashboard</span>
+              <span className="text-lg font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Dashboard</span>
             </Link>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="hidden lg:flex"
+            className="hidden lg:flex hover:bg-accent/50"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           >
             {sidebarCollapsed ? (
@@ -154,21 +145,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2">
-          <ul className="space-y-1">
-            {filteredNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+        {/* Navigation - Dynamic Menus */}
+        <nav className="flex-1 overflow-y-auto p-3">
+          <ul className="space-y-1.5">
+            {userMenus.map((item: MenuItem) => {
+              const Icon = getIcon(item.icon);
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
-                <li key={item.href}>
+                <li key={item.id}>
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground hover:translate-x-1"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -182,19 +173,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* User section */}
-        <div className="border-t p-2">
+        <div className="border-t border-border/50 p-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start gap-3",
+                  "w-full justify-start gap-3 hover:bg-accent/50 rounded-xl",
                   sidebarCollapsed && "justify-center px-2"
                 )}
               >
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-9 w-9 ring-2 ring-primary/20">
                   <AvatarImage src={user?.photoURL} />
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-sm">
                     {user?.displayName ? getInitials(user.displayName) : "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -209,24 +200,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("common.myAccount")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
+                <Link href="/dashboard/profile" className="gap-2">
+                  <User className="h-4 w-4" />
+                  {t("common.profile")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                <Link href="/dashboard/settings" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  {t("common.settings")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 gap-2">
+                <LogOut className="h-4 w-4" />
+                {t("common.logout")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -236,7 +227,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b bg-card px-4 lg:px-6">
+        <header className="flex h-16 items-center justify-between border-b border-border/50 bg-card/50 backdrop-blur-xl px-4 lg:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -246,16 +237,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-2 ml-auto">
+            <LanguageToggle />
+            <ThemeToggle />
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-red-600 text-[10px] text-white font-medium shadow-lg">
                 3
               </span>
             </Button>
-            <div className="hidden sm:block">
+            <div className="hidden sm:block ml-2">
               <span className="text-sm text-muted-foreground">
-                Welcome, <span className="font-medium text-foreground">{user?.displayName}</span>
+                {t("common.welcome")}, <span className="font-semibold text-foreground">{user?.displayName}</span>
               </span>
             </div>
           </div>
@@ -267,3 +260,4 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     </div>
   );
 }
+

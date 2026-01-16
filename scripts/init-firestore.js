@@ -23,6 +23,7 @@ const DEFAULT_ROLES = {
       'edit_users',
       'delete_users',
       'manage_roles',
+      'manage_menus',
       'view_reports',
       'create_reports',
       'export_reports',
@@ -65,6 +66,66 @@ const SAMPLE_ACTIVITIES = [
     details: 'The dashboard system was initialized with default roles',
     type: 'success',
     timestamp: new Date(),
+  },
+]
+
+// Default menus configuration
+const DEFAULT_MENUS = [
+  {
+    title: 'Dashboard',
+    href: '/dashboard',
+    icon: 'LayoutDashboard',
+    permission: 'view_dashboard',
+    order: 0,
+    isActive: true,
+  },
+  {
+    title: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: 'BarChart3',
+    permission: 'view_analytics',
+    order: 1,
+    isActive: true,
+  },
+  {
+    title: 'Users',
+    href: '/dashboard/users',
+    icon: 'Users',
+    permission: 'view_users',
+    order: 2,
+    isActive: true,
+  },
+  {
+    title: 'Reports',
+    href: '/dashboard/reports',
+    icon: 'FileText',
+    permission: 'view_reports',
+    order: 3,
+    isActive: true,
+  },
+  {
+    title: 'Roles',
+    href: '/dashboard/roles',
+    icon: 'Shield',
+    permission: 'manage_roles',
+    order: 4,
+    isActive: true,
+  },
+  {
+    title: 'Menus',
+    href: '/dashboard/menus',
+    icon: 'Menu',
+    permission: 'manage_menus',
+    order: 5,
+    isActive: true,
+  },
+  {
+    title: 'Settings',
+    href: '/dashboard/settings',
+    icon: 'Settings',
+    permission: 'view_settings',
+    order: 6,
+    isActive: true,
   },
 ]
 
@@ -131,6 +192,11 @@ ${JSON.stringify(SAMPLE_REPORTS, null, 2)}
 -------------------------------------------
 ${JSON.stringify(SAMPLE_ACTIVITIES, null, 2)}
 
+4. DEFAULT MENUS (/menus)
+-------------------------------------------
+Add the following documents to the menus collection:
+${JSON.stringify(DEFAULT_MENUS, null, 2)}
+
 ===========================================
 FIREBASE ADMIN SDK SETUP (Optional)
 ===========================================
@@ -187,6 +253,15 @@ async function initializeFirestore() {
   }
   console.log('Added sample activities');
   
+  // Add default menus
+  for (const menu of DEFAULT_MENUS) {
+    await db.collection('menus').add({
+      ...menu,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  console.log('Added default menus');
+  
   console.log('Firestore initialization complete!');
 }
 
@@ -194,4 +269,9 @@ initializeFirestore().catch(console.error);
 */
 `)
 
-module.exports = { DEFAULT_ROLES, SAMPLE_REPORTS, SAMPLE_ACTIVITIES }
+module.exports = {
+  DEFAULT_ROLES,
+  SAMPLE_REPORTS,
+  SAMPLE_ACTIVITIES,
+  DEFAULT_MENUS,
+}

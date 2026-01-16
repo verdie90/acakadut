@@ -73,6 +73,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Menus collection - dynamic menu management
+    match /menus/{menuId} {
+      // All authenticated users can read menus
+      allow read: if isAuthenticated();
+      
+      // Only admins can modify menus
+      allow write: if isAdmin() || hasPermission('manage_menus');
+    }
+    
     // Reports collection
     match /reports/{reportId} {
       // Users with VIEW_REPORTS permission can read
