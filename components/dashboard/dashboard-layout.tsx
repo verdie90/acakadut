@@ -44,6 +44,8 @@ import {
   HelpCircle,
   type LucideIcon,
   Sparkles,
+  Layers,
+  Share2,
 } from "lucide-react";
 
 // Icon mapping for dynamic icons from Firestore
@@ -65,6 +67,8 @@ const iconMap: Record<string, LucideIcon> = {
   MessageCircle,
   HelpCircle,
   User,
+  Layers,
+  Share2,
 };
 
 // Get icon component from string name

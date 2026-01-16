@@ -120,11 +120,19 @@ const DEFAULT_MENUS = [
     isActive: true,
   },
   {
+    title: 'Platforms',
+    href: '/dashboard/platforms',
+    icon: 'Layers',
+    permission: 'view_dashboard',
+    order: 6,
+    isActive: true,
+  },
+  {
     title: 'Settings',
     href: '/dashboard/settings',
     icon: 'Settings',
     permission: 'view_settings',
-    order: 6,
+    order: 7,
     isActive: true,
   },
 ]
